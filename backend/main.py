@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from backend.database import engine, get_db
 from backend.models import Base, Issue
@@ -44,6 +45,16 @@ app.add_middleware(
 def health_check():
     return {"status": "ok"}
 
+def save_file_blocking(file_obj, path):
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(file_obj, buffer)
+
+def save_issue_db(db: Session, issue: Issue):
+    db.add(issue)
+    db.commit()
+    db.refresh(issue)
+    return issue
+
 @app.post("/api/issues")
 async def create_issue(
     description: str = Form(...),
@@ -60,8 +71,8 @@ async def create_issue(
         filename = f"{uuid.uuid4()}_{image.filename}"
         image_path = os.path.join(upload_dir, filename)
 
-        with open(image_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
+        # Offload blocking file I/O to threadpool
+        await run_in_threadpool(save_file_blocking, image.file, image_path)
 
     # Save to DB
     new_issue = Issue(
@@ -70,9 +81,9 @@ async def create_issue(
         image_path=image_path,
         source="web"
     )
-    db.add(new_issue)
-    db.commit()
-    db.refresh(new_issue)
+
+    # Offload blocking DB operations to threadpool
+    await run_in_threadpool(save_issue_db, db, new_issue)
 
     # Generate Action Plan (AI)
     action_plan = await generate_action_plan(description, category, image_path)
