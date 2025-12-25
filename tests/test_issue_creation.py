@@ -6,6 +6,11 @@ from fastapi.testclient import TestClient
 
 # Note: This test requires PYTHONPATH=backend to be set to import backend modules
 # Run with: PYTHONPATH=backend python tests/test_issue_creation.py
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
+
 from main import app
 from models import Base
 from database import engine

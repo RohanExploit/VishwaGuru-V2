@@ -6,7 +6,11 @@ Uses Gemini AI to generate human-readable summaries about MLAs and their roles.
 import os
 import google.generativeai as genai
 from typing import Dict, Optional
+import warnings
+from async_lru import alru_cache
 
+# Suppress deprecation warnings from google.generativeai
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
 
 # Configure Gemini (reuses existing configuration)
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -33,6 +37,7 @@ def _get_fallback_summary(mla_name: str, assembly_constituency: str, district: s
     )
 
 
+@alru_cache(maxsize=100)
 async def generate_mla_summary(
     district: str,
     assembly_constituency: str,

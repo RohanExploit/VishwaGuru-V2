@@ -1,6 +1,10 @@
 import os
 import google.generativeai as genai
 from typing import Optional
+import warnings
+
+# Suppress deprecation warnings from google.generativeai
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
 
 # Configure Gemini
 api_key = os.environ.get("GEMINI_API_KEY")
