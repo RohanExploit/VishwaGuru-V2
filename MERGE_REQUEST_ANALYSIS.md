@@ -22,7 +22,11 @@ This document analyzes all open pull requests in the VishwaGuru repository and p
 - **Status**: Draft, mergeable_state unknown
 - **Changes**: Similar MLA lookup optimization + test fixes + caching for Gemini API
 - **Overlap**: Contains the same MLA optimization as PR #18
-- **Recommendation**: **REVIEW AND UPDATE** - Remove duplicate MLA optimization code, keep unique features (test fixes, Gemini caching)
+- **Detailed Analysis**:
+  - ✅ Test fixes (real MLA data) - ALREADY IN MAIN
+  - ✅ Gemini warning suppression - ALREADY IN MAIN
+  - ✅ Gemini caching - ALREADY IN MAIN (uses better @alru_cache decorator)
+- **Recommendation**: **CLOSE THIS PR** - All features already in main with better implementations
 
 ### PR #16 - ⚡ Bolt: Optimize pincode and MLA lookup to O(1) (Draft)
 - **Status**: Draft, mergeable_state unknown
@@ -34,7 +38,11 @@ This document analyzes all open pull requests in the VishwaGuru repository and p
 - **Status**: Draft, mergeable_state unknown
 - **Changes**: MLA optimization + Telegram bot async fixes + user_email field
 - **Overlap**: Contains the same MLA optimization
-- **Recommendation**: **REVIEW AND UPDATE** - Remove duplicate MLA optimization, keep unique features (async bot fixes, user_email)
+- **Detailed Analysis**:
+  - ✅ MLA lookup optimization - ALREADY IN MAIN
+  - ✅ Telegram bot async fixes - ALREADY IN MAIN (using threadpool)
+  - ❌ user_email field in Issue model - NOT IN MAIN
+- **Recommendation**: **EXTRACT user_email FEATURE** - Create new PR with just user_email addition if needed
 
 ### PR #6 - ⚡ Bolt: Fix blocking I/O in async endpoint
 - **Status**: Not draft, has review comments
@@ -55,8 +63,8 @@ The merge conflicts and overlapping PRs stem from:
 ### Immediate Actions:
 1. **Close PR #18** - Mark as resolved/superseded by PR #20
 2. **Close PR #16** - Mark as resolved/superseded by PR #20  
-3. **Review PR #17** - Extract unique features (test fixes, Gemini caching) and create new PR if needed
-4. **Review PR #14** - Extract unique features (async bot, user_email) and create new PR if needed
+3. **Close PR #17** - All features already in main (tests, caching, warning suppression)
+4. **Review PR #14** - Only user_email field is unique; create separate PR if this feature is needed
 5. **Review PR #6** - Continue normal review process, no conflicts with MLA optimization
 
 ### Documentation Updates:
@@ -66,11 +74,27 @@ The merge conflicts and overlapping PRs stem from:
 
 ## Verification
 
-The main branch (commit a61a1b4) contains the MLA lookup optimization:
-- `load_maharashtra_pincode_data()` returns `Dict[str, Dict[str, Any]]` with O(1) lookups
-- `load_maharashtra_mla_data()` returns `Dict[str, Dict[str, Any]]` with O(1) lookups
-- Both functions use `@lru_cache` for performance
-- Implementation is cleaner than in the conflicting PRs (no intermediate helper functions)
+The main branch (commit a61a1b4) contains ALL the optimizations from the conflicting PRs:
+
+### MLA Lookup Optimization (from PRs #14, #16, #17, #18):
+- ✅ `load_maharashtra_pincode_data()` returns `Dict[str, Dict[str, Any]]` with O(1) lookups
+- ✅ `load_maharashtra_mla_data()` returns `Dict[str, Dict[str, Any]]` with O(1) lookups
+- ✅ Both functions use `@lru_cache` for performance
+- ✅ Implementation is cleaner (no intermediate helper functions)
+
+### Test Updates (from PR #17):
+- ✅ Tests updated with real MLA data (Ravindra Dhangekar, Rahul Narwekar)
+- ✅ Tests expect dict instead of list for data structures
+
+### Gemini Improvements (from PR #17):
+- ✅ FutureWarning suppression implemented
+- ✅ Caching implemented with `@alru_cache` (better than simple dict)
+
+### Telegram Bot Async (from PR #14):
+- ✅ Blocking DB operations moved to threadpool via `save_issue_to_db` helper
+
+### Missing Feature:
+- ❌ `user_email` field in Issue model (from PR #14) - only unique feature not in main
 
 ## Next Steps
 1. Document findings in PR #21
