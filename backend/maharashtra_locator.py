@@ -9,6 +9,45 @@ import os
 from functools import lru_cache
 from typing import Optional, Dict, Any
 
+# District Pincode Ranges (Fallback data)
+# Format: (start, end, district)
+DISTRICT_RANGES = [
+    (400001, 400104, "Mumbai City"),
+    (411001, 411062, "Pune"),
+    (440001, 441204, "Nagpur"),
+    (400601, 421605, "Thane"),
+    (422001, 422403, "Nashik"),
+    (431001, 431210, "Aurangabad"),
+    (413001, 413409, "Solapur"),
+    (416001, 416220, "Kolhapur"),
+    (444601, 444912, "Amravati"),
+    (425001, 425504, "Jalgaon"),
+    (414001, 414505, "Ahmednagar"),
+    (416416, 416436, "Sangli"),
+    (413512, 413531, "Latur"),
+    (415001, 415539, "Satara"),
+    (442401, 442908, "Chandrapur"),
+    (441904, 441914, "Bhandara"),
+    (442001, 442506, "Wardha"),
+    (445001, 445304, "Yavatmal"),
+    (431601, 431805, "Nanded"),
+    (413501, 413613, "Osmanabad"),
+    (431122, 431540, "Beed"),
+    (444001, 444808, "Akola"),
+    (424001, 424319, "Dhule"),
+    (431203, 431513, "Jalna"),
+    (431401, 431540, "Parbhani"),
+    (425412, 425524, "Nandurbar"),
+    (431513, 431701, "Hingoli"),
+    (415612, 415804, "Ratnagiri"),
+    (416601, 416810, "Sindhudurg"),
+    (401501, 401610, "Palghar"),
+    (402201, 402308, "Raigad"),
+    (441601, 441911, "Gondia"),
+    (442605, 442709, "Gadchiroli"),
+    (444105, 444512, "Washim"),
+    (443001, 443403, "Buldhana")
+]
 
 @lru_cache(maxsize=1)
 def load_maharashtra_pincode_data() -> Dict[str, Dict[str, Any]]:
@@ -50,6 +89,17 @@ def load_maharashtra_mla_data() -> Dict[str, Dict[str, Any]]:
         return {item["assembly_constituency"]: item for item in data_list}
 
 
+def get_district_by_pincode_range(pincode: int) -> Optional[str]:
+    """
+    Find district by checking pincode ranges.
+    This is an O(N) fallback where N is number of ranges (~35).
+    """
+    for start, end, district in DISTRICT_RANGES:
+        if start <= pincode <= end:
+            return district
+    return None
+
+
 def find_constituency_by_pincode(pincode: str) -> Optional[Dict[str, Any]]:
     """
     Find constituency information by pincode.
@@ -63,6 +113,7 @@ def find_constituency_by_pincode(pincode: str) -> Optional[Dict[str, Any]]:
     if not pincode or len(pincode) != 6 or not pincode.isdigit():
         return None
     
+    # 1. Exact Lookup
     pincode_map = load_maharashtra_pincode_data()
     entry = pincode_map.get(pincode)
     
@@ -73,6 +124,19 @@ def find_constituency_by_pincode(pincode: str) -> Optional[Dict[str, Any]]:
             "assembly_constituency": entry.get("assembly_constituency")
         }
     
+    # 2. Range Fallback
+    try:
+        pincode_int = int(pincode)
+        district = get_district_by_pincode_range(pincode_int)
+        if district:
+            return {
+                "district": district,
+                "state": "Maharashtra",
+                "assembly_constituency": None # Unknown constituency, but we know the district
+            }
+    except ValueError:
+        pass
+
     return None
 
 

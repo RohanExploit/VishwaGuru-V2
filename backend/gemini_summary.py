@@ -60,7 +60,8 @@ async def generate_mla_summary(
         return _get_fallback_summary(mla_name, assembly_constituency, district)
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        # Use Gemini 1.5 Flash for faster response times
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         issue_context = f" particularly regarding {issue_category} issues" if issue_category else ""
         

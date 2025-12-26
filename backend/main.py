@@ -156,22 +156,36 @@ async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, m
         )
     
     # Find MLA by constituency
-    mla_info = find_mla_by_constituency(constituency_info["assembly_constituency"])
+    # If constituency_info exists but assembly_constituency is None, it means we only found District info via fallback
+    assembly_constituency = constituency_info.get("assembly_constituency")
+    mla_info = None
+
+    if assembly_constituency:
+        mla_info = find_mla_by_constituency(assembly_constituency)
     
+    # If explicit MLA lookup failed or wasn't possible, create a generic placeholder
     if not mla_info:
-        raise HTTPException(
-            status_code=404,
-            detail=f"MLA information not found for constituency: {constituency_info['assembly_constituency']}"
-        )
+        mla_info = {
+            "mla_name": "MLA Info Unavailable",
+            "party": "N/A",
+            "phone": "N/A",
+            "email": "N/A",
+            "twitter": "Not Available"
+        }
+        # If we have a district but no constituency, explain it
+        if not assembly_constituency:
+             constituency_info["assembly_constituency"] = "Unknown (District Found)"
     
     # Generate AI summary (optional)
     description = None
     try:
-        description = await generate_mla_summary(
-            district=constituency_info["district"],
-            assembly_constituency=constituency_info["assembly_constituency"],
-            mla_name=mla_info["mla_name"]
-        )
+        # Only generate summary if we have a valid constituency and MLA
+        if assembly_constituency and mla_info["mla_name"] != "MLA Info Unavailable":
+            description = await generate_mla_summary(
+                district=constituency_info["district"],
+                assembly_constituency=assembly_constituency,
+                mla_name=mla_info["mla_name"]
+            )
     except Exception as e:
         print(f"Error generating MLA summary: {e}")
         # Continue without description
@@ -199,7 +213,9 @@ async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, m
     # Add description if generated
     if description:
         response["description"] = description
-    
+    elif mla_info["mla_name"] == "MLA Info Unavailable":
+        response["description"] = f"We found that {pincode} belongs to {constituency_info['district']} district, but we don't have the specific MLA details for this exact pincode yet."
+
     return response
 
 # Note: Frontend serving code removed for separate deployment

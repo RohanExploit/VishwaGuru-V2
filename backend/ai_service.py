@@ -23,7 +23,8 @@ async def generate_action_plan(issue_description: str, category: str, image_path
         }
 
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        # Use Gemini 1.5 Flash for faster response times
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         prompt = f"""
         You are a civic action assistant. A user has reported a civic issue.
