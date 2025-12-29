@@ -1,159 +1,228 @@
-# VishwaGuru
+## VishwaGuru
 
-VishwaGuru is an open source platform empowering India's youth to engage with democracy. It uses AI to simplify contacting representatives, filing grievances, and organizing community action. Built for India's languages and governance, it turns selfies and videos into real civic impact.
+VishwaGuru is an open‑source civic-tech platform that helps India’s youth engage with democracy.  
+It uses AI to turn everyday evidence (photos, videos, descriptions) into concrete actions like contacting representatives, filing grievances, and organizing local campaigns.
 
-## Features
+### Key Features
 
-- **AI-Powered Action Plans**: Generates WhatsApp messages and email drafts for civic issues using Google's Gemini API.
-- **Issue Reporting**: Users can report issues via a web interface or a Telegram bot.
-- **Local & Production Ready**: Supports SQLite for local development and PostgreSQL for production.
-- **Modern Stack**: Built with React (Vite) and FastAPI.
+- **AI-powered action plans**: Uses Google Gemini to generate WhatsApp messages, email drafts, and escalation plans for civic issues.
+- **Issue reporting**: Report issues via a modern web app and a Telegram bot.
+- **Local & production ready**: SQLite for local development, PostgreSQL for production.
+- **Modern stack**: React + Vite + Tailwind CSS on the frontend; FastAPI + SQLAlchemy on the backend.
+
+---
+
+## Project Structure
+
+- `backend/` – FastAPI app, AI integration, database models, Telegram bot.
+- `frontend/` – React (Vite) SPA for the user-facing interface.
+- `data/` – Sample/reference data for responsibilities and mappings.
+- `tests/` – Automated tests for backend and integration flows.
+- `render.yaml`, `netlify.toml` – Deployment configuration for Render (backend) and Netlify (frontend).
+
+For a deeper architectural overview, see `ARCHITECTURE.md` and `IMPLEMENTATION_SUMMARY.md`.
+
+---
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+Install these before you start:
 
-- **Python 3.8+**
+- **Python 3.10+** (3.8+ may work, but 3.10+ is recommended)
 - **Node.js 18+** and **npm**
 - **Git**
 
-## Installation
+---
 
-### 1. Clone the Repository
+## Local Setup
 
-```bash
-git clone <repository_url>
-cd vishwaguru
-```
-
-### 2. Backend Setup
-
-The backend handles API requests, database interactions, and the Telegram bot.
-
-1.  Create a virtual environment (in the root directory):
-    ```bash
-    # Linux/macOS
-    python3 -m venv venv
-    source venv/bin/activate
-
-    # Windows
-    python -m venv venv
-    venv\Scripts\activate
-    ```
-
-2.  Install dependencies:
-    ```bash
-    pip install -r backend/requirements.txt
-    ```
-
-3.  **Environment Configuration**:
-    Create a `.env` file in the root of the repository.
-
-    Required Environment Variables:
-    *   `TELEGRAM_BOT_TOKEN`: Token from @BotFather for the Telegram Bot.
-    *   `GEMINI_API_KEY`: API Key from Google AI Studio.
-    *   `DATABASE_URL`: (Optional) Connection string for PostgreSQL. Defaults to `sqlite:///./data/issues.db`.
-
-    **Note**: You can copy the example file:
-    ```bash
-    cp .env.example .env
-    ```
-    Then edit `.env` to add your keys.
-
-### 3. Frontend Setup
-
-The frontend is a React application built with Vite.
-
-1.  Navigate to the frontend directory:
-    ```bash
-    cd frontend
-    ```
-
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-
-## Running the Application
-
-### Start the Backend Server
-
-From the **root directory** (with your virtual environment activated):
+### 1. Clone the repository
 
 ```bash
-PYTHONPATH=backend python -m uvicorn main:app --reload
+git clone <your_github_repo_url>
+cd VishwaGuru
 ```
 
-The API will be available at `http://localhost:8000`.
+> Replace `<your_github_repo_url>` with the URL of the GitHub repo you create for this project.
 
-**Note for Windows**: Use `set PYTHONPATH=backend & python -m uvicorn main:app --reload`
+### 2. Backend setup
 
-### Start the Frontend Development Server
+The backend powers the API, AI services, database, and Telegram bot.
 
-Open a new terminal window:
+1. **Create and activate a virtual environment** (from the project root):
+
+   ```bash
+   # Linux/macOS
+   python3 -m venv venv
+   source venv/bin/activate
+
+   # Windows (PowerShell)
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+   ```
+
+2. **Install backend dependencies**:
+
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+
+3. **Environment configuration**
+
+   Create a `.env` file in the project root (next to `backend/` and `frontend/`).
+
+   Required variables:
+
+   - `TELEGRAM_BOT_TOKEN` – Token from `@BotFather` for the Telegram bot.
+   - `GEMINI_API_KEY` – API key from Google AI Studio.
+   - `DATABASE_URL` – Optional; defaults to `sqlite:///./backend/data/issues.db` if not set.
+
+   If you have an `.env.example` file, you can start from it:
+
+   ```bash
+   cp .env.example .env   # Linux/macOS
+   ```
+
+   Then edit `.env` with your own values.
+
+### 3. Frontend setup
+
+From the project root:
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+---
+
+## Running the App in Development
+
+### 1. Start the backend (FastAPI + Telegram bot)
+
+From the project root, with your virtual environment activated:
+
+```bash
+cd backend
+python -m uvicorn main:app --reload
+```
+
+- Backend API: `http://localhost:8000`
+- OpenAPI docs: `http://localhost:8000/docs`
+
+> **Note (Windows/PowerShell)**: You do **not** need `PYTHONPATH` hacks if you run the command from inside the `backend/` directory as shown above.
+
+### 2. Start the frontend (React + Vite)
+
+In a **new terminal** window:
 
 ```bash
 cd frontend
 npm run dev
 ```
-The application will be accessible at `http://localhost:5173`.
 
-### Start the Telegram Bot
+By default, the frontend runs on `http://localhost:5173`.
 
-The Telegram bot runs as part of the FastAPI application lifecycle, so it starts automatically when you run the backend server.
+If your backend runs on a different host/port, set:
 
-## Tech Stack
+```bash
+VITE_API_URL=http://localhost:8000
+```
 
-*   **Frontend**: React, Vite, Tailwind CSS
-*   **Backend**: Python, FastAPI, SQLAlchemy, Pydantic
-*   **Database**: SQLite (Dev), PostgreSQL (Prod)
-*   **AI**: Google Gemini (google-generativeai)
-*   **Bot**: python-telegram-bot
+in a `frontend/.env` or `frontend/.env.local` file.
 
-## Deployment
+---
 
-### Architecture: Split Deployment
+## Tests & Basic Stability Checks
 
-VishwaGuru uses a modern split deployment architecture:
-- **Frontend**: Deployed on Netlify (Static hosting for React app)
-- **Backend**: Deployed on Render (FastAPI server + Telegram bot + PostgreSQL)
+The repository includes backend tests under `tests/`.
 
-This provides:
-- ✅ Better performance (CDN for frontend)
-- ✅ Independent scaling
-- ✅ Easy rollbacks
-- ✅ Free hosting on both platforms
+After activating your virtual environment and installing backend dependencies:
 
-### Quick Start
+```bash
+cd backend
+pytest
+```
 
-See detailed guides:
-- **[Complete Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Step-by-step instructions
-- **[Quick Reference](./QUICK_REFERENCE.md)** - At-a-glance configuration
+If `pytest` is not installed, you can add it by installing the optional dev dependencies or by running:
 
-**TL;DR**:
+```bash
+pip install pytest
+```
 
-1. **Backend (Render)**:
-   - Build: `pip install -r backend/requirements.txt`
-   - Start: `python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-   - Add Neon database connection string and set environment variables
+For a quick syntax check on backend files:
 
-2. **Frontend (Netlify)**:
-   - Base: `frontend/`, Build: `npm run build`, Publish: `frontend/dist`
-   - Set `VITE_API_URL` to your Render backend URL
+```bash
+cd backend
+python -m compileall .
+```
 
-### ❌ Important: Do NOT use these commands
+---
 
-- `python -m bot` - This only starts the Telegram bot, not the web server
-- `./render-build.sh` - This builds frontend too (unnecessary for backend-only deploy)
+## Deployment Overview
+
+VishwaGuru is designed for split deployment:
+
+- **Frontend**: Netlify (static hosting for the React app)
+- **Backend**: Render (FastAPI app + Telegram bot + PostgreSQL/SQLite)
+
+Benefits:
+
+- **Better performance** – CDN for frontend assets
+- **Independent scaling** – Scale API and UI separately
+- **Simpler rollbacks** – Revert frontend/backend independently
+
+### Quick deployment reference
+
+For detailed, step‑by‑step instructions, see:
+
+- `DEPLOYMENT_GUIDE.md` – Complete deployment guide
+- `QUICK_REFERENCE.md` – At-a-glance config and commands
+
+**Backend (Render) – core settings**
+
+- Build command: `pip install -r backend/requirements.txt`
+- Start command: `python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- Environment variables: `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `DATABASE_URL`, etc.
+
+**Frontend (Netlify) – core settings**
+
+- Base directory: `frontend/`
+- Build command: `npm run build`
+- Publish directory: `frontend/dist`
+- Environment variable: `VITE_API_URL` pointing to your Render backend URL
+
+> **Do NOT use**:
+> - `python -m bot` – Only runs the Telegram bot, not the web server.
+> - `./render-build.sh` – Only required for specific advanced setups; use `render.yaml` instead.
+
+---
 
 ## Contributing
 
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/YourFeature`).
-3.  Commit your changes (`git commit -m 'Add some feature'`).
-4.  Push to the branch (`git push origin feature/YourFeature`).
-5.  Open a Pull Request.
+Contributions are welcome. To propose a change:
+
+1. Fork the repository on GitHub.
+2. Create a feature branch:
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. Make your changes and commit:
+
+   ```bash
+   git commit -m "Describe your change briefly"
+   ```
+
+4. Push your branch and open a Pull Request against the main branch.
+
+---
 
 ## License
 
-This project is licensed under the **AGPL-3.0** License.
+This project is licensed under the **AGPL-3.0** license.  
+See `LICENSE` for full details.
+
+# VishwaGuru-V2
