@@ -1,33 +1,31 @@
 """
-Gemini Summary Service for Maharashtra MLA Information
+OpenRouter Summary Service for Maharashtra MLA Information
 
-Uses Gemini AI to generate human-readable summaries about MLAs and their roles.
+Uses OpenRouter AI to generate human-readable summaries about MLAs and their roles.
 """
 import os
-import google.generativeai as genai
+import aiohttp
 from typing import Dict, Optional
 import warnings
 from async_lru import alru_cache
+from dotenv import load_dotenv
 
-# Suppress deprecation warnings from google.generativeai
-warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
+# Load environment variables from .env file
+load_dotenv()
 
-# Configure Gemini (reuses existing configuration)
-# Use provided key as fallback if env var is missing
-api_key = os.environ.get("GEMINI_API_KEY", "AIzaSyB8_i3tbDE3GmX4CsQ8G3mD3pB2WrHi5C8")
-if api_key:
-    genai.configure(api_key=api_key)
+# OpenRouter API configuration
+openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
 
 
 def _get_fallback_summary(mla_name: str, assembly_constituency: str, district: str) -> str:
     """
     Generate a fallback summary when Gemini is unavailable or fails.
-    
+
     Args:
         mla_name: Name of the MLA
         assembly_constituency: Assembly constituency name
         district: District name
-        
+
     Returns:
         A simple fallback description
     """
@@ -47,25 +45,29 @@ async def generate_mla_summary(
 ) -> str:
     """
     Generate a human-readable summary about an MLA using Gemini.
-    
+
     Args:
         district: District name
         assembly_constituency: Assembly constituency name
         mla_name: Name of the MLA
         issue_category: Optional category of issue for context
-        
+
     Returns:
         A short paragraph describing the MLA's role and responsibilities
     """
-    if not api_key:
+    if not openrouter_api_key:
         return _get_fallback_summary(mla_name, assembly_constituency, district)
-    
+
     try:
-        # Use Gemini 1.5 Flash for faster response times
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Use OpenRouter with Llama 3.2 1B model
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {openrouter_api_key}",
+            "Content-Type": "application/json"
+        }
 
         issue_context = f" particularly regarding {issue_category} issues" if issue_category else ""
-        
+
         prompt = f"""
         You are helping an Indian citizen understand who represents them. 
         In one short paragraph (max 100 words), explain that the MLA {mla_name} represents 
@@ -75,11 +77,23 @@ async def generate_mla_summary(
         Do not hallucinate phone numbers or emails; only talk about roles and responsibilities.
         Keep it factual, helpful, and encouraging for civic engagement.
         """
-        
-        response = await model.generate_content_async(prompt)
-        return response.text.strip()
-        
+
+        data = {
+            "model": "meta-llama/llama-3.2-1b-instruct",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=data) as response:
+                result = await response.json()
+                return result['choices'][0]['message']['content'].strip()
+
     except Exception as e:
-        print(f"Gemini Summary Error: {e}")
+        print(f"OpenRouter Summary Error: {e}")
         # Fallback to simple description
         return _get_fallback_summary(mla_name, assembly_constituency, district)

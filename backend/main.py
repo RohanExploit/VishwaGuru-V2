@@ -1,3 +1,10 @@
+import io
+from PIL import Image
+from pothole_detection import detect_potholes
+from bot import run_bot
+from contextlib import asynccontextmanager
+from fastapi import Depends
+import asyncio
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
@@ -13,23 +20,21 @@ import os
 import shutil
 from functools import lru_cache
 import uuid
-import asyncio
-from fastapi import Depends
-from contextlib import asynccontextmanager
-from bot import run_bot
-from pothole_detection import detect_potholes
-from PIL import Image
-import io
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Start Telegram Bot in background (non-blocking)
     bot_task = None
     bot_app = None
-    
+
     # Start bot initialization in background to avoid blocking port binding
     async def start_bot_background():
         nonlocal bot_app
@@ -37,12 +42,12 @@ async def lifespan(app: FastAPI):
             bot_app = await run_bot()
         except Exception as e:
             print(f"Error starting bot: {e}")
-    
+
     # Create background task for bot initialization
     bot_task = asyncio.create_task(start_bot_background())
-    
+
     yield
-    
+
     # Shutdown: Stop Telegram Bot
     if bot_task and not bot_task.done():
         try:
@@ -52,7 +57,7 @@ async def lifespan(app: FastAPI):
             pass  # Expected when cancelling
         except Exception as e:
             print(f"Error cancelling bot task: {e}")
-    
+
     if bot_app:
         try:
             await bot_app.updater.stop()
@@ -79,6 +84,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
     return {
@@ -87,19 +93,23 @@ def root():
         "version": "1.0.0"
     }
 
+
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
+
 def save_file_blocking(file_obj, path):
     with open(path, "wb") as buffer:
         shutil.copyfileobj(file_obj, buffer)
+
 
 def save_issue_db(db: Session, issue: Issue):
     db.add(issue)
     db.commit()
     db.refresh(issue)
     return issue
+
 
 @app.post("/api/issues")
 async def create_issue(
@@ -142,14 +152,17 @@ async def create_issue(
         "action_plan": action_plan
     }
 
+
 @lru_cache(maxsize=1)
 def _load_responsibility_map():
     # Assuming the data folder is at the root level relative to where backend is run
     # Adjust path as necessary. If running from root, it is "data/responsibility_map.json"
-    file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "responsibility_map.json")
+    file_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), "data", "responsibility_map.json")
 
     with open(file_path, "r") as f:
         return json.load(f)
+
 
 @app.get("/api/responsibility-map")
 def get_responsibility_map():
@@ -160,13 +173,16 @@ def get_responsibility_map():
     except FileNotFoundError:
         return {"error": "Data file not found"}
 
+
 class ChatRequest(BaseModel):
     query: str
+
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     response = await chat_with_civic_assistant(request.query)
     return {"response": response}
+
 
 @app.get("/api/issues/recent")
 def get_recent_issues(db: Session = Depends(get_db)):
@@ -185,6 +201,7 @@ def get_recent_issues(db: Session = Depends(get_db)):
         for i in issues
     ]
 
+
 @app.post("/api/detect-pothole")
 async def detect_pothole_endpoint(image: UploadFile = File(...)):
     # Read image
@@ -193,25 +210,27 @@ async def detect_pothole_endpoint(image: UploadFile = File(...)):
     try:
         pil_image = Image.open(io.BytesIO(contents))
     except Exception:
-         raise HTTPException(status_code=400, detail="Invalid image file")
+        raise HTTPException(status_code=400, detail="Invalid image file")
 
     # Run detection (blocking, so run in threadpool)
     try:
         detections = await run_in_threadpool(detect_potholes, pil_image)
     except Exception as e:
         print(f"Detection error: {e}")
-        raise HTTPException(status_code=500, detail="Error processing image for detection")
+        raise HTTPException(
+            status_code=500, detail="Error processing image for detection")
 
     return {"detections": detections}
+
 
 @app.get("/api/mh/rep-contacts")
 async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, max_length=6)):
     """
     Get MLA and representative contact information for Maharashtra by pincode.
-    
+
     Args:
         pincode: 6-digit pincode for Maharashtra
-        
+
     Returns:
         JSON with MLA details, constituency info, and grievance portal links
     """
@@ -221,16 +240,16 @@ async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, m
             status_code=400,
             detail="Invalid pincode format. Must be 6 digits."
         )
-    
+
     # Find constituency by pincode
     constituency_info = find_constituency_by_pincode(pincode)
-    
+
     if not constituency_info:
         raise HTTPException(
             status_code=404,
             detail="Unknown pincode for Maharashtra MVP. Currently only supporting limited pincodes."
         )
-    
+
     # Find MLA by constituency
     # If constituency_info exists but assembly_constituency is None, it means we only found District info via fallback
     assembly_constituency = constituency_info.get("assembly_constituency")
@@ -238,7 +257,7 @@ async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, m
 
     if assembly_constituency:
         mla_info = find_mla_by_constituency(assembly_constituency)
-    
+
     # If explicit MLA lookup failed or wasn't possible, create a generic placeholder
     if not mla_info:
         mla_info = {
@@ -250,8 +269,8 @@ async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, m
         }
         # If we have a district but no constituency, explain it
         if not assembly_constituency:
-             constituency_info["assembly_constituency"] = "Unknown (District Found)"
-    
+            constituency_info["assembly_constituency"] = "Unknown (District Found)"
+
     # Generate AI summary (optional)
     description = None
     try:
@@ -265,7 +284,7 @@ async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, m
     except Exception as e:
         print(f"Error generating MLA summary: {e}")
         # Continue without description
-    
+
     # Build response
     response = {
         "pincode": pincode,
@@ -285,7 +304,7 @@ async def get_maharashtra_rep_contacts(pincode: str = Query(..., min_length=6, m
             "note": "This is an MVP; data may not be fully accurate."
         }
     }
-    
+
     # Add description if generated
     if description:
         response["description"] = description

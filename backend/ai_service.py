@@ -1,22 +1,21 @@
 import os
-import google.generativeai as genai
+import aiohttp
 from typing import Optional
 import warnings
+from dotenv import load_dotenv
 
-# Suppress deprecation warnings from google.generativeai
-warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
+# Load environment variables from .env file
+load_dotenv()
 
-# Configure Gemini
-# Use provided key as fallback if env var is missing
-api_key = os.environ.get("GEMINI_API_KEY", "AIzaSyB8_i3tbDE3GmX4CsQ8G3mD3pB2WrHi5C8")
-if api_key:
-    genai.configure(api_key=api_key)
+# OpenRouter API configuration
+openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
+
 
 async def generate_action_plan(issue_description: str, category: str, image_path: Optional[str] = None) -> dict:
     """
     Generates an action plan (WhatsApp message, Email draft) using Gemini.
     """
-    if not api_key:
+    if not openrouter_api_key:
         return {
             "whatsapp": f"Hello, I would like to report a {category} issue: {issue_description}",
             "email_subject": f"Complaint regarding {category}",
@@ -24,8 +23,12 @@ async def generate_action_plan(issue_description: str, category: str, image_path
         }
 
     try:
-        # Use Gemini 1.5 Flash for faster response times
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Use OpenRouter with Llama 3.2 1B model
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {openrouter_api_key}",
+            "Content-Type": "application/json"
+        }
 
         prompt = f"""
         You are a civic action assistant. A user has reported a civic issue.
@@ -41,20 +44,29 @@ async def generate_action_plan(issue_description: str, category: str, image_path
         Do not use markdown code blocks. Just the raw JSON string.
         """
 
-        response = await model.generate_content_async(prompt)
-        text_response = response.text.strip()
+        data = {
+            "model": "meta-llama/llama-3.2-1b-instruct",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "response_format": {"type": "json_object"}
+        }
 
-        # Cleanup if markdown code blocks are returned
-        if text_response.startswith("```json"):
-            text_response = text_response[7:-3]
-        elif text_response.startswith("```"):
-            text_response = text_response[3:-3]
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=data) as response:
+                result = await response.json()
+                text_response = result['choices'][0]['message']['content'].strip(
+                )
 
+        # Parse the JSON response
         import json
         return json.loads(text_response)
 
     except Exception as e:
-        print(f"Gemini Error: {e}")
+        print(f"OpenRouter Error: {e}")
         # Fallback
         return {
             "whatsapp": f"Hello, I would like to report a {category} issue: {issue_description}",
@@ -62,14 +74,22 @@ async def generate_action_plan(issue_description: str, category: str, image_path
             "email_body": f"Respected Authority,\n\nI am writing to bring to your attention a {category} issue: {issue_description}.\n\nPlease take necessary action.\n\nSincerely,\nCitizen"
         }
 
+
 async def chat_with_civic_assistant(query: str) -> str:
     """
     Chat with the civic assistant.
     """
-    if not client:
+    if not openrouter_api_key:
         return "I am currently offline. Please try again later."
 
     try:
+        # Use OpenRouter with Llama 3.2 1B model
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {openrouter_api_key}",
+            "Content-Type": "application/json"
+        }
+
         prompt = f"""
         You are VishwaGuru, a helpful civic assistant for Indian citizens.
         User Query: {query}
@@ -79,11 +99,20 @@ async def chat_with_civic_assistant(query: str) -> str:
         Keep answers concise and helpful.
         """
 
-        response = await client.aio.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
-        return response.text.strip()
+        data = {
+            "model": "meta-llama/llama-3.2-1b-instruct",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=data) as response:
+                result = await response.json()
+                return result['choices'][0]['message']['content'].strip()
     except Exception as e:
-        print(f"Gemini Chat Error: {e}")
+        print(f"OpenRouter Chat Error: {e}")
         return "I encountered an error processing your request."
